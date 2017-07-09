@@ -715,13 +715,14 @@ htp__callback_find_(evhtp_callbacks_t * cbs,
  * @details if for example the input was "/a/b/c", the parser will
  *          consider "/a/b/" as the path, and "c" as the file.
  *
+ * @param out unallocated evhtp_path_t
  * @param data raw input data (assumes a /path/[file] structure)
  * @param len length of the input data
  *
- * @return evhtp_request_t * on success, NULL on error.
+ * @return 0 on success, -1 on error. `out` is allocated on success.
  */
-static evhtp_path_t *
-htp__path_new_(const char * data, size_t len)
+static int
+htp__path_new_(evhtp_path_t ** out, const char * const data, size_t const len)
 {
     evhtp_path_t * req_path;
     const char   * data_end = (const char *)(data + len);
@@ -776,7 +777,7 @@ htp__path_new_(const char * data, size_t len)
                     {
                         evhtp_safe_free(req_path, free);
 
-                        return NULL;
+                        return -1;
                     }
 
                     /* check for overflow */
@@ -784,7 +785,7 @@ htp__path_new_(const char * data, size_t len)
                     {
                         evhtp_safe_free(req_path, free);
 
-                        return NULL;
+                        return -1;
                     }
 
                     path = strndup(data, path_len);
@@ -828,7 +829,9 @@ htp__path_new_(const char * data, size_t len)
     req_path->path = path;
     req_path->file = file;
 
-    return req_path;
+    *out           = req_path;
+
+    return 0;
 }     /* htp__path_new_ */
 
 static void
@@ -911,17 +914,18 @@ htp__uri_free_(evhtp_uri_t * uri)
 
 /**
  * @brief create an overlay URI structure
+ * @param out copy data into this
  *
- * @return evhtp_uri_t
+ * @return 0 on success, -1 on error.
  */
-static evhtp_uri_t *
-htp__uri_new_(void)
+static int
+htp__uri_new_(evhtp_uri_t ** out)
 {
     evhtp_uri_t * uri;
 
     if (!(uri = calloc(sizeof(evhtp_uri_t), 1)))
     {
-        return NULL;
+        return -1;
     }
 
     uri->authority = htp__authority_new_();
@@ -930,10 +934,12 @@ htp__uri_new_(void)
     {
         htp__uri_free_(uri);
 
-        return NULL;
+        return -1;
     }
 
-    return uri;
+    *out = uri;
+
+    return 0;
 }
 
 /**
@@ -1416,8 +1422,7 @@ htp__require_uri_(evhtp_connection_t * c)
 {
     if (c && c->request && !c->request->uri)
     {
-        c->request->uri = htp__uri_new_();
-        evhtp_alloc_assert(c->request->uri);
+        return htp__uri_new_(&c->request->uri);
     }
 
     return 0;
@@ -1429,7 +1434,7 @@ htp__request_parse_host_(htparser * p, const char * data, size_t len)
     evhtp_connection_t * c = htparser_get_userdata(p);
     evhtp_authority_t  * authority;
 
-    if (htp__require_uri_(c) != 0)
+    if (htp__require_uri_(c) == -1)
     {
         return -1;
     }
@@ -1458,7 +1463,7 @@ htp__request_parse_port_(htparser * p, const char * data, size_t len)
     char               * endptr;
     unsigned long        port;
 
-    if (htp__require_uri_(c) != 0)
+    if (htp__require_uri_(c) == -1)
     {
         return -1;
     }
@@ -1484,12 +1489,13 @@ htp__request_parse_path_(htparser * p, const char * data, size_t len)
     evhtp_connection_t * c = htparser_get_userdata(p);
     evhtp_path_t       * path;
 
-    if (htp__require_uri_(c) != 0)
+    if (htp__require_uri_(c) == -1)
     {
         return -1;
     }
 
-    if (evhtp_unlikely(!(path = htp__path_new_(data, len))))
+
+    if (htp__path_new_(&path, data, len) == -1)
     {
         c->request->status = EVHTP_RES_FATAL;
 
