@@ -149,11 +149,11 @@ htp__malloc_(size_t size)
     return malloc_(size);
 }
 
-static void *
-htp__realloc_(void * ptr, size_t size)
-{
-    return realloc_(ptr, size);
-}
+//static void *
+//htp__realloc_(void * ptr, size_t size)
+//{
+//    return realloc_(ptr, size);
+//}
 
 static void
 htp__free_(void * ptr)
