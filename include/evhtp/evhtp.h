@@ -11,7 +11,11 @@
 #include <evhtp/parser.h>
 
 #ifndef EVHTP_DISABLE_REGEX
+#ifdef EVHTP_USE_SYS_ONIG
 #include <onigposix.h>
+#else
+#include <evhtp/onigposix.h>
+#endif
 #endif
 
 #include <sys/queue.h>
@@ -29,26 +33,6 @@
 
 #ifdef __cplusplus
 extern "C" {
-#endif
-
-#ifdef EVHTP_DEBUG
-#define __QUOTE(x)              # x
-#define  _QUOTE(x)              __QUOTE(x)
-#define htp_debug_strlen(x)     strlen(x)
-
-#define htp_log_debug(fmt, ...) do {                                                               \
-        time_t      t  = time(NULL);                                                               \
-        struct tm * dm = localtime(&t);                                                            \
-                                                                                                   \
-        fprintf(stdout, "[%02d:%02d:%02d] evhtp.c:[" _QUOTE(__LINE__) "]\t                %-26s: " \
-                fmt "\n", dm->tm_hour, dm->tm_min, dm->tm_sec, __func__, ## __VA_ARGS__);          \
-        fflush(stdout);                                                                            \
-} while (0)
-
-#else
-#define htp_debug_strlen(x)     0
-#define htp_log_debug(fmt, ...) do { \
-} while (0)
 #endif
 
 struct evhtp_callback_s;
@@ -202,7 +186,7 @@ typedef evhtp_ssl_sess_t * (* evhtp_ssl_scache_get)(evhtp_connection_t * connect
 typedef void * (* evhtp_ssl_scache_init)(evhtp_t *);
 #endif
 
-#define EVHTP_VERSION           "1.2.12-pre3"
+#define EVHTP_VERSION           "1.2.12"
 #define EVHTP_VERSION_MAJOR     1
 #define EVHTP_VERSION_MINOR     2
 #define EVHTP_VERSION_PATCH     12
