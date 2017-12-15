@@ -1,3 +1,7 @@
+/**
+ * @file evhtp.h
+ */
+
 #include <evhtp/config.h>
 
 #ifndef __EVHTP__H__
@@ -11,11 +15,7 @@
 #include <evhtp/parser.h>
 
 #ifndef EVHTP_DISABLE_REGEX
-#ifdef EVHTP_USE_SYS_ONIG
 #include <onigposix.h>
-#else
-#include <evhtp/onigposix.h>
-#endif
 #endif
 
 #include <sys/queue.h>
@@ -44,6 +44,11 @@ typedef SSL                       evhtp_ssl_t;
 typedef SSL_CTX                   evhtp_ssl_ctx_t;
 typedef X509                      evhtp_x509_t;
 typedef X509_STORE_CTX            evhtp_x509_store_ctx_t;
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+typedef unsigned char             evhtp_ssl_data_t;
+#else
+typedef const unsigned char       evhtp_ssl_data_t;
+#endif
 #else
 typedef void                      evhtp_ssl_sess_t;
 typedef void                      evhtp_ssl_t;
@@ -162,7 +167,7 @@ typedef evhtp_res (* evhtp_post_accept_cb)(evhtp_connection_t * conn, void * arg
 typedef evhtp_res (* evhtp_hook_header_cb)(evhtp_request_t * req, evhtp_header_t * hdr, void * arg);
 typedef evhtp_res (* evhtp_hook_headers_cb)(evhtp_request_t * req, evhtp_headers_t * hdr, void * arg);
 typedef evhtp_res (* evhtp_hook_path_cb)(evhtp_request_t * req, evhtp_path_t * path, void * arg);
-typedef evhtp_res (* evhtp_hook_read_cb)(evhtp_request_t * req, evbuf_t * buf, void * arg);
+typedef evhtp_res (* evhtp_hook_read_cb)(evhtp_request_t * req, struct evbuffer * buf, void * arg);
 typedef evhtp_res (* evhtp_hook_request_fini_cb)(evhtp_request_t * req, void * arg);
 typedef evhtp_res (* evhtp_hook_connection_fini_cb)(evhtp_connection_t * connection, void * arg);
 typedef evhtp_res (* evhtp_hook_chunk_new_cb)(evhtp_request_t * r, uint64_t len, void * arg);
@@ -180,16 +185,17 @@ typedef int (* evhtp_ssl_verify_cb)(int pre_verify, evhtp_x509_store_ctx_t * ctx
 typedef int (* evhtp_ssl_chk_issued_cb)(evhtp_x509_store_ctx_t * ctx, evhtp_x509_t * x, evhtp_x509_t * issuer);
 typedef EVP_PKEY * (* evhtp_ssl_decrypt_cb)(char * privfile);
 
-typedef int (* evhtp_ssl_scache_add)(evhtp_connection_t * connection, unsigned char * sid, int sid_len, evhtp_ssl_sess_t * sess);
-typedef void (* evhtp_ssl_scache_del)(evhtp_t * htp, unsigned char * sid, int sid_len);
-typedef evhtp_ssl_sess_t * (* evhtp_ssl_scache_get)(evhtp_connection_t * connection, unsigned char * sid, int sid_len);
+typedef int (* evhtp_ssl_scache_add)(evhtp_connection_t * connection, evhtp_ssl_data_t * sid, int sid_len, evhtp_ssl_sess_t * sess);
+typedef void (* evhtp_ssl_scache_del)(evhtp_t * htp, evhtp_ssl_data_t * sid, int sid_len);
+typedef evhtp_ssl_sess_t * (* evhtp_ssl_scache_get)(evhtp_connection_t * connection, evhtp_ssl_data_t * sid, int sid_len);
+
 typedef void * (* evhtp_ssl_scache_init)(evhtp_t *);
 #endif
 
-#define EVHTP_VERSION           "1.2.12"
+#define EVHTP_VERSION           "1.2.15"
 #define EVHTP_VERSION_MAJOR     1
 #define EVHTP_VERSION_MINOR     2
-#define EVHTP_VERSION_PATCH     12
+#define EVHTP_VERSION_PATCH     15
 
 #define evhtp_headers_iterator  evhtp_kvs_iterator
 
@@ -278,20 +284,25 @@ struct evhtp_alias_s {
  * @brief main structure containing all configuration information
  */
 struct evhtp_s {
-    evhtp_t  * parent;                  /**< only when this is a vhost */
-    evbase_t * evbase;                  /**< the initialized event_base */
-    evserv_t * server;                  /**< the libevent listener struct */
-    char     * server_name;             /**< the name included in Host: responses */
-    void     * arg;                     /**< user-defined evhtp_t specific arguments */
-    int        bev_flags;               /**< bufferevent flags to use on bufferevent_*_socket_new() */
-    uint64_t   max_body_size;
-    uint64_t   max_keepalive_requests;
+    evhtp_t               * parent;      /**< only when this is a vhost */
+    struct event_base     * evbase;      /**< the initialized event_base */
+    struct evconnlistener * server;      /**< the libevent listener struct */
+    char                  * server_name; /**< the name included in Host: responses */
+    void                  * arg;         /**< user-defined evhtp_t specific arguments */
+    int                     bev_flags;   /**< bufferevent flags to use on bufferevent_*_socket_new() */
+    uint64_t                max_body_size;
+    uint64_t                max_keepalive_requests;
 
     #define EVHTP_FLAG_ENABLE_100_CONT     (1 << 1)
     #define EVHTP_FLAG_ENABLE_REUSEPORT    (1 << 2)
     #define EVHTP_FLAG_ENABLE_NODELAY      (1 << 3)
     #define EVHTP_FLAG_ENABLE_DEFER_ACCEPT (1 << 4)
     #define EVHTP_FLAG_DEFAULTS            EVHTP_FLAG_ENABLE_100_CONT
+    #define EVHTP_FLAG_ENABLE_ALL          EVHTP_FLAG_ENABLE_100_CONT \
+        | EVHTP_FLAG_ENABLE_REUSEPORT                                 \
+        | EVHTP_FLAG_ENABLE_NODELAY                                   \
+        | EVHTP_FLAG_ENABLE_DEFER_ACCEPT
+
     uint16_t flags;             /**< the base flags set for this context, see: EVHTP_FLAG_* */
     uint16_t parser_flags;      /**< default query flags to alter 'strictness' (see EVHTP_PARSE_QUERY_FLAG_*) */
 
@@ -395,8 +406,8 @@ struct evhtp_request_s {
     evhtp_connection_t * conn;          /**< the associated connection */
     evhtp_hooks_t      * hooks;         /**< request specific hooks */
     evhtp_uri_t        * uri;           /**< request URI information */
-    evbuf_t            * buffer_in;     /**< buffer containing data from client */
-    evbuf_t            * buffer_out;    /**< buffer containing data to client */
+    struct evbuffer    * buffer_in;     /**< buffer containing data from client */
+    struct evbuffer    * buffer_out;    /**< buffer containing data to client */
     evhtp_headers_t    * headers_in;    /**< headers from client */
     evhtp_headers_t    * headers_out;   /**< headers to client */
     evhtp_proto          proto;         /**< HTTP protocol used */
@@ -417,9 +428,9 @@ struct evhtp_request_s {
 #define evhtp_request_content_len(r) htparser_get_content_length(r->conn->parser)
 
 struct evhtp_connection_s {
-    evhtp_t  * htp;
-    evbase_t * evbase;
-    evbev_t  * bev;
+    evhtp_t            * htp;
+    struct event_base  * evbase;
+    struct bufferevent * bev;
 #ifndef EVHTP_DISABLE_EVTHR
     evthr_t * thread;
 #endif
@@ -428,7 +439,7 @@ struct evhtp_connection_s {
 #endif
     evhtp_hooks_t   * hooks;
     htparser        * parser;
-    event_t         * resume_ev;
+    struct event    * resume_ev;
     struct sockaddr * saddr;
     struct timeval    recv_timeo;                  /**< conn read timeouts (overrides global) */
     struct timeval    send_timeo;                  /**< conn write timeouts (overrides global) */
@@ -535,7 +546,7 @@ EVHTP_EXPORT void evhtp_set_mem_functions(void *(*malloc_)(size_t),
  *
  * @return a new evhtp_t structure or NULL on error
  */
-EVHTP_EXPORT evhtp_t * evhtp_new(evbase_t * evbase, void * arg);
+EVHTP_EXPORT evhtp_t * evhtp_new(struct event_base * evbase, void * arg);
 
 EVHTP_EXPORT void evhtp_enable_flag(evhtp_t *, int);
 EVHTP_EXPORT void evhtp_connection_enable_flag(evhtp_connection_t *, int);
@@ -548,11 +559,11 @@ EVHTP_EXPORT void evhtp_connection_disable_flag(evhtp_connection_t *, int);
 EVHTP_EXPORT void evhtp_request_disable_flag(evhtp_request_t *, int);
 
 /**
- * @brief free a evhtp_t context
+ * @brief Frees evhtp_t structure; will stop and free threads associated
+ * with the structure, and free the ssl context as well (if applicable).
  *
- * @param evhtp
+ * @param evhtp - ptr to evhtp_t structure
  *
- * @return
  */
 EVHTP_EXPORT void evhtp_free(evhtp_t * evhtp);
 
@@ -765,23 +776,13 @@ EVHTP_EXPORT evhtp_callback_t * evhtp_get_cb(evhtp_t * htp, const char * needle)
  *
  * @return 0 on success, -1 on error (if hooks is NULL, it is allocated)
  */
-EVHTP_EXPORT int evhtp_set_hook(evhtp_hooks_t ** hooks, evhtp_hook_type type, evhtp_hook cb, void * arg)
-DEPRECATED("use evhtp_[connection|request|callback]_set_hook() instead of set_hook directly");
-
 EVHTP_EXPORT int evhtp_connection_set_hook(evhtp_connection_t * c, evhtp_hook_type type, evhtp_hook cb, void * arg);
 EVHTP_EXPORT int evhtp_request_set_hook(evhtp_request_t * r, evhtp_hook_type type, evhtp_hook cb, void * arg);
 EVHTP_EXPORT int evhtp_callback_set_hook(evhtp_callback_t * cb, evhtp_hook_type type, evhtp_hook hookcb, void * arg);
 
-/**
- * @brief remove a specific hook from being called.
- *
- * @param hooks
- * @param type
- *
- * @return
- */
-EVHTP_EXPORT int evhtp_unset_hook(evhtp_hooks_t ** hooks, evhtp_hook_type type);
-
+EVHTP_EXPORT evhtp_hooks_t * evhtp_connection_get_hooks(evhtp_connection_t * c);
+EVHTP_EXPORT evhtp_hooks_t * evhtp_request_get_hooks(evhtp_request_t * r);
+EVHTP_EXPORT evhtp_hooks_t * evhtp_callback_get_hooks(evhtp_callback_t * cb);
 
 /**
  * @brief removes all hooks.
@@ -791,6 +792,11 @@ EVHTP_EXPORT int evhtp_unset_hook(evhtp_hooks_t ** hooks, evhtp_hook_type type);
  * @return
  */
 EVHTP_EXPORT int evhtp_unset_all_hooks(evhtp_hooks_t ** hooks);
+
+EVHTP_EXPORT int evhtp_request_unset_hook(evhtp_request_t * req, evhtp_hook_type type);
+EVHTP_EXPORT int evhtp_connection_unset_hook(evhtp_connection_t * conn, evhtp_hook_type type);
+EVHTP_EXPORT int evhtp_callback_unset_hook(evhtp_callback_t * callback, evhtp_hook_type type);
+
 
 /**
  * @brief bind to a socket, optionally with specific protocol support
@@ -835,13 +841,14 @@ EVHTP_EXPORT int evhtp_accept_socket(evhtp_t * htp, evutil_socket_t sock, int ba
 
 /**
  * @brief bind to an already allocated sockaddr.
+ * @see evhtp_bind_socket
  *
- * @param htp
- * @parami s
- * @param sin_len
- * @param backlog
+ * @param htp - ptr to evhtp_t structure
+ * @param sa - ptr to sockaddr structure
+ * @param sin_len - size of sockaddr structure
+ * @param backlog - backlog flag
  *
- * @return
+ * @return 0 on success, -1 on fail
  */
 EVHTP_EXPORT int evhtp_bind_sockaddr(evhtp_t * htp, struct sockaddr *,
     size_t sin_len, int backlog);
@@ -886,7 +893,7 @@ EVHTP_EXPORT void evhtp_send_reply(evhtp_request_t * request, evhtp_res code);
  * but for the weak of heart.
  */
 EVHTP_EXPORT void evhtp_send_reply_start(evhtp_request_t * request, evhtp_res code);
-EVHTP_EXPORT void evhtp_send_reply_body(evhtp_request_t * request, evbuf_t * buf);
+EVHTP_EXPORT void evhtp_send_reply_body(evhtp_request_t * request, struct evbuffer * buf);
 EVHTP_EXPORT void evhtp_send_reply_end(evhtp_request_t * request);
 
 /**
@@ -913,7 +920,7 @@ EVHTP_EXPORT void evhtp_send_reply_chunk_start(evhtp_request_t * request, evhtp_
  * @param request
  * @param buf
  */
-EVHTP_EXPORT void evhtp_send_reply_chunk(evhtp_request_t * request, evbuf_t * buf);
+EVHTP_EXPORT void evhtp_send_reply_chunk(evhtp_request_t * request, struct evbuffer * buf);
 
 /**
  * @brief call when all chunks have been sent and you wish to send the last
@@ -945,11 +952,14 @@ EVHTP_EXPORT void evhtp_send_reply_chunk_end(evhtp_request_t * request);
 EVHTP_EXPORT evhtp_callback_t *
 evhtp_callback_new(const char * path, evhtp_callback_type type, evhtp_callback_cb cb, void * arg);
 
-
 /**
- * @brief frees information associated with a ainflwx callback.
+ * @brief safely frees callback structure memory and internals
  *
- * @param callback
+ * @see evhtp_safe_free
+ *
+ *
+ * @param callback - callback to be freed
+ *
  */
 EVHTP_EXPORT void evhtp_callback_free(evhtp_callback_t * callback);
 
@@ -991,6 +1001,20 @@ EVHTP_EXPORT int evhtp_add_vhost(evhtp_t * evhtp, const char * name, evhtp_t * v
  * @return
  */
 EVHTP_EXPORT int evhtp_add_alias(evhtp_t * evhtp, const char * name);
+
+
+/**
+ * @brief set a variable number of aliases in one call
+ * @reference evhtp_add_alias
+ * @note last argument must be NULL terminated
+ *
+ * @param evhtp
+ * @param name
+ * @param ...
+ *
+ * @return 0 on success, -1 on error
+ */
+EVHTP_EXPORT int evhtp_add_aliases(evhtp_t * evhtp, const char * name, ...);
 
 /**
  * @brief Allocates a new key/value structure.
@@ -1220,9 +1244,37 @@ EVHTP_EXPORT htp_method  evhtp_request_get_method(evhtp_request_t * r);
 EVHTP_EXPORT evhtp_proto evhtp_request_get_proto(evhtp_request_t * r);
 
 /* the following functions all do the same thing, pause and the processing */
+
+/**
+ * @brief pauses a connection (disables reading)
+ *
+ * @param c a evhtp_connection_t * structure
+ */
 EVHTP_EXPORT void evhtp_connection_pause(evhtp_connection_t * connection);
+
+/**
+ * @brief resumes a connection (enables reading) and activates resume event.
+ *
+ * @param c
+ */
 EVHTP_EXPORT void evhtp_connection_resume(evhtp_connection_t * connection);
+
+/**
+ * @brief Wrapper around evhtp_connection_pause
+ *
+ * @see evhtp_connection_pause
+ *
+ * @param request
+ */
 EVHTP_EXPORT void evhtp_request_pause(evhtp_request_t * request);
+
+/**
+ * @brief Wrapper around evhtp_connection_resume
+ *
+ * @see evhtp_connection_resume
+ *
+ * @param request
+ */
 EVHTP_EXPORT void evhtp_request_resume(evhtp_request_t * request);
 
 
@@ -1241,7 +1293,7 @@ EVHTP_EXPORT evhtp_connection_t * evhtp_request_get_connection(evhtp_request_t *
  * @param conn
  * @param bev
  */
-EVHTP_EXPORT void evhtp_connection_set_bev(evhtp_connection_t * conn, evbev_t * bev);
+EVHTP_EXPORT void evhtp_connection_set_bev(evhtp_connection_t * conn, struct bufferevent * bev);
 
 /**
  * @brief sets the underlying bufferevent for a evhtp_request
@@ -1249,7 +1301,7 @@ EVHTP_EXPORT void evhtp_connection_set_bev(evhtp_connection_t * conn, evbev_t * 
  * @param request
  * @param bev
  */
-EVHTP_EXPORT void evhtp_request_set_bev(evhtp_request_t * request, evbev_t * bev);
+EVHTP_EXPORT void evhtp_request_set_bev(evhtp_request_t * request, struct bufferevent * bev);
 
 
 /**
@@ -1259,7 +1311,7 @@ EVHTP_EXPORT void evhtp_request_set_bev(evhtp_request_t * request, evbev_t * bev
  *
  * @return bufferevent on success, otherwise NULL
  */
-EVHTP_EXPORT evbev_t * evhtp_connection_get_bev(evhtp_connection_t * conn);
+EVHTP_EXPORT struct bufferevent * evhtp_connection_get_bev(evhtp_connection_t * conn);
 
 /**
  * @brief sets a connection-specific read/write timeout which overrides the
@@ -1281,7 +1333,7 @@ evhtp_connection_set_timeouts(evhtp_connection_t * conn,
  *
  * @return bufferevent on success, otherwise NULL
  */
-EVHTP_EXPORT evbev_t * evhtp_request_get_bev(evhtp_request_t * request);
+EVHTP_EXPORT struct bufferevent * evhtp_request_get_bev(evhtp_request_t * request);
 
 
 /**
@@ -1296,7 +1348,7 @@ EVHTP_EXPORT evbev_t * evhtp_request_get_bev(evhtp_request_t * request);
  *
  * @return underlying connections bufferevent.
  */
-EVHTP_EXPORT evbev_t * evhtp_connection_take_ownership(evhtp_connection_t * connection);
+EVHTP_EXPORT struct bufferevent * evhtp_connection_take_ownership(evhtp_connection_t * connection);
 
 
 /**
@@ -1351,7 +1403,8 @@ EVHTP_EXPORT void evhtp_set_max_keepalive_requests(evhtp_t * htp, uint64_t num);
 /**
  * @brief allocate a new connection
  */
-EVHTP_EXPORT evhtp_connection_t * evhtp_connection_new_dns(evbase_t * evbase,
+EVHTP_EXPORT evhtp_connection_t * evhtp_connection_new_dns(
+    struct event_base * evbase,
     struct evdns_base * dns_base,
     const char * addr, uint16_t port);
 
@@ -1359,10 +1412,12 @@ EVHTP_EXPORT evhtp_connection_t * evhtp_connection_new_dns(evbase_t * evbase,
  * @brief allocate a new connection
  */
 EVHTP_EXPORT evhtp_connection_t *
-evhtp_connection_new(evbase_t * evbase, const char * addr, uint16_t port);
+evhtp_connection_new(struct event_base * evbase, const char * addr, uint16_t port);
 
 #ifndef EVHTP_DISABLE_SSL
-EVHTP_EXPORT evhtp_connection_t * evhtp_connection_ssl_new(evbase_t * evbase, const char * addr, uint16_t port, evhtp_ssl_ctx_t * ctx);
+EVHTP_EXPORT evhtp_connection_t * evhtp_connection_ssl_new(
+    struct event_base * evbase,
+    const char * addr, uint16_t port, evhtp_ssl_ctx_t * ctx);
 #endif
 
 

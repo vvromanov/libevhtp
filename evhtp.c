@@ -1,3 +1,9 @@
+/**
+ * @file evhtp.c
+ *
+ * @brief implementation file for libevhtp.
+ */
+
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
@@ -101,6 +107,11 @@ TAILQ_HEAD(evhtp_callbacks_s, evhtp_callback_s);
 } while (0);
 
 #ifndef EVHTP_DISABLE_EVTHR
+/**
+ * @brief Helper macro to lock htp structure
+ *
+ * @param h htp structure
+ */
 #define htp__lock_(h)                                do { \
         if (h->lock)                                      \
         {                                                 \
@@ -108,6 +119,11 @@ TAILQ_HEAD(evhtp_callbacks_s, evhtp_callback_s);
         }                                                 \
 } while (0)
 
+/**
+ * @brief Helper macro to unlock htp lock
+ *
+ * @param h htp structure
+ */
 #define htp__unlock_(h)                              do { \
         if (h->lock)                                      \
         {                                                 \
@@ -149,24 +165,65 @@ static void * (*malloc_)(size_t sz) = malloc;
 static void * (* realloc_)(void * d, size_t sz) = realloc;
 static void   (* free_)(void * d) = free;
 
+/**
+ * @brief Wrapper for malloc so that a different malloc can be used
+ * if desired.
+ *
+ * @see evhtp_set_mem_functions
+ *
+ * @param size size_t of memory to be allocated
+ *
+ * @return void * to malloc'd memory or NULL if fail
+ */
 static void *
 htp__malloc_(size_t size)
 {
     return malloc_(size);
 }
 
-//static void *
-//htp__realloc_(void * ptr, size_t size)
-//{
-//    return realloc_(ptr, size);
-//}
+/**
+ * @brief Wrapper for realloc so that a different realloc can be used
+ * if desired.
+ *
+ * @see evhtp_set_mem_functions
+ *
+ * @param ptr current memory ptr
+ * @param size size_t of memory to be allocated
+ *
+ * @return void * to newly realloc'd memory or NULL if fail
+ */
+static void *
+htp__realloc_(void * ptr, size_t size)
+{
+    return realloc_(ptr, size);
+}
 
+/**
+ * @brief Wrapper for free so that a different free can be used
+ * if desired.
+ *
+ * @see evhtp_set_mem_functions
+ *
+ * @param ptr pointer to memory to be freed.
+ *
+ */
 static void
 htp__free_(void * ptr)
 {
     return free_(ptr);
 }
 
+/**
+ * @brief Wrapper for calloc so that a different calloc can be used
+ * if desired.
+ *
+ * @see evhtp_set_mem_functions
+ *
+ * @param nmemb number of members (as a size_t)
+ * @param size size of member blocks (as a size_t)
+ *
+ * @return void * to new memory block
+ */
 static void *
 htp__calloc_(size_t nmemb, size_t size)
 {
@@ -188,6 +245,14 @@ htp__calloc_(size_t nmemb, size_t size)
     return calloc(nmemb, size);
 }
 
+/**
+ * @brief implementation of strdup function.
+ *
+ * @param str - null terminated string.
+ *
+ * @return duplicate of string or NULL if fail
+ *
+ */
 static char *
 htp__strdup_(const char * str)
 {
@@ -211,6 +276,15 @@ htp__strdup_(const char * str)
     return strdup(str);
 }
 
+/**
+ * @brief implementation of strndup function.
+ *
+ * @param str - null terminated string.
+ * @param len - size_t length off string
+ *
+ * @return duplicate of string or NULL if fail
+ *
+ */
 static char *
 htp__strndup_(const char * str, size_t len)
 {
@@ -242,6 +316,7 @@ htp__strndup_(const char * str, size_t len)
 #define htp__free_(p)        free(p)
 #endif
 
+
 void
 evhtp_set_mem_functions(void *(*mallocfn_)(size_t len),
                         void *(*reallocfn_)(void * p, size_t sz),
@@ -256,6 +331,13 @@ evhtp_set_mem_functions(void *(*mallocfn_)(size_t len),
 #endif
 }
 
+/**
+ * @brief returns string status code from enum code
+ *
+ * @param code as evhtp_res enum
+ *
+ * @return string corresponding to code, else UNKNOWN
+ */
 static const char *
 status_code_to_str(evhtp_res code)
 {
@@ -373,6 +455,15 @@ static int             ssl_locks_initialized = 0;
  */
 
 #ifdef NO_STRNLEN
+/**
+ * @brief Implementation of strnlen function if none exists.
+ *
+ * @param s - null terminated character string
+ * @param maxlen - maximum length of string
+ *
+ * @return length of string
+ *
+ */
 static size_t
 strnlen(const char * s, size_t maxlen)
 {
@@ -390,6 +481,15 @@ strnlen(const char * s, size_t maxlen)
 #endif
 
 #ifdef NO_STRNDUP
+/**
+ * @brief Implementation of strndup if none exists.
+ *
+ * @param s - const char * to null terminated string
+ * @param n - size_t maximum legnth of string
+ *
+ * @return length limited string duplicate or NULL if fail
+ *
+ */
 static char *
 strndup(const char * s, size_t n)
 {
@@ -565,6 +665,13 @@ htp__hook_request_fini_(evhtp_request_t * request)
     return EVHTP_RES_OK;
 }
 
+/**
+ * @brief Runs the user defined request hook
+ *
+ * @param request
+ * @param len
+ * @return
+ */
 static inline evhtp_res
 htp__hook_chunk_new_(evhtp_request_t * request, uint64_t len)
 {
@@ -573,6 +680,12 @@ htp__hook_chunk_new_(evhtp_request_t * request, uint64_t len)
     return EVHTP_RES_OK;
 }
 
+/**
+ * @brief Runs the user defined on_chunk_fini hook
+ *
+ * @param request
+ * @return
+ */
 static inline evhtp_res
 htp__hook_chunk_fini_(evhtp_request_t * request)
 {
@@ -581,6 +694,12 @@ htp__hook_chunk_fini_(evhtp_request_t * request)
     return EVHTP_RES_OK;
 }
 
+/**
+ * @brief Runs the user defined on chunk_finis hook
+ *
+ * @param request
+ * @return
+ */
 static inline evhtp_res
 htp__hook_chunks_fini_(evhtp_request_t * request)
 {
@@ -589,6 +708,12 @@ htp__hook_chunks_fini_(evhtp_request_t * request)
     return EVHTP_RES_OK;
 }
 
+/**
+ * @brief Runs the user defined on_headers_start hook
+ *
+ * @param request
+ * @return
+ */
 static inline evhtp_res
 htp__hook_headers_start_(evhtp_request_t * request)
 {
@@ -658,6 +783,13 @@ htp__hook_connection_error_(evhtp_connection_t * connection, evhtp_error_flags e
     return EVHTP_RES_OK;
 }
 
+/**
+ * @brief Runs the user defined hostname processing hook
+ *
+ * @param r
+ * @param hostname
+ * @return
+ */
 static inline evhtp_res
 htp__hook_hostname_(evhtp_request_t * r, const char * hostname)
 {
@@ -666,6 +798,12 @@ htp__hook_hostname_(evhtp_request_t * r, const char * hostname)
     return EVHTP_RES_OK;
 }
 
+/**
+ * @brief Runs the user defined on_write hook
+ *
+ * @param connection
+ * @return
+ */
 static inline evhtp_res
 htp__hook_connection_write_(evhtp_connection_t * connection)
 {
@@ -754,6 +892,15 @@ htp__glob_match_(const char * pattern, size_t plen,
     return 0;
 } /* htp__glob_match_ */
 
+/**
+ * @brief Locates a given callback offsets performs a regex pattern match
+ *
+ * @param [IN] cbs ptr to evhtp_callbacks_t structure
+ * @param [IN] path
+ * @param [OUT] start_offset
+ * @param [OUT] end_offset
+ * @return
+ */
 static evhtp_callback_t *
 htp__callback_find_(evhtp_callbacks_t * cbs,
                     const char        * path,
@@ -774,8 +921,7 @@ htp__callback_find_(evhtp_callbacks_t * cbs,
 
     path_len = strlen(path);
 
-    TAILQ_FOREACH(callback, cbs, next)
-    {
+    TAILQ_FOREACH(callback, cbs, next) {
         switch (callback->type) {
             case evhtp_callback_type_hash:
                 if (strncmp(path, callback->val.path, callback->len) == 0)
@@ -956,6 +1102,10 @@ htp__path_new_(evhtp_path_t ** out, const char * data, size_t len)
     return 0;
 }     /* htp__path_new_ */
 
+/**
+ * @brief Correctly frees the evhtp_path_t ptr that is passed in.
+ * @param path
+ */
 static void
 htp__path_free_(evhtp_path_t * path)
 {
@@ -1164,6 +1314,12 @@ htp__request_new_(evhtp_connection_t * c)
     return req;
 } /* htp__request_new_ */
 
+/**
+ * @brief Starts the parser for the connection associated with the parser struct
+ *
+ * @param p
+ * @return  0 on success, -1 on fail
+ */
 static int
 htp__request_parse_start_(htparser * p)
 {
@@ -1197,6 +1353,16 @@ htp__request_parse_start_(htparser * p)
     return 0;
 }
 
+/**
+ * @brief parses http request arguments
+ *
+ * @see htparser_get_userdata
+ *
+ * @param p
+ * @param data
+ * @param len
+ * @return 0 on success, -1 on failure (sets connection cr_status as well)
+ */
 static int
 htp__request_parse_args_(htparser * p, const char * data, size_t len)
 {
@@ -1345,8 +1511,7 @@ htp__request_find_vhost_(evhtp_t * evhtp, const char * name)
     evhtp_t       * evhtp_vhost;
     evhtp_alias_t * evhtp_alias;
 
-    TAILQ_FOREACH(evhtp_vhost, &evhtp->vhosts, next_vhost)
-    {
+    TAILQ_FOREACH(evhtp_vhost, &evhtp->vhosts, next_vhost) {
         if (evhtp_unlikely(evhtp_vhost->server_name == NULL))
         {
             continue;
@@ -1359,8 +1524,7 @@ htp__request_find_vhost_(evhtp_t * evhtp, const char * name)
             return evhtp_vhost;
         }
 
-        TAILQ_FOREACH(evhtp_alias, &evhtp_vhost->aliases, next)
-        {
+        TAILQ_FOREACH(evhtp_alias, &evhtp_vhost->aliases, next) {
             if (evhtp_alias->alias == NULL)
             {
                 continue;
@@ -1794,7 +1958,7 @@ htp__request_parse_chunks_fini_(htparser * p)
 
 /**
  * @brief determines if the request body contains the query arguments.
- *        if the query is NULL and the contenet length of the body has never
+ *        if the query is NULL and the content length of the body has never
  *        been drained, and the content-type is x-www-form-urlencoded, the
  *        function returns 1
  *
@@ -1914,8 +2078,7 @@ htp__create_headers_(evhtp_header_t * header, void * arg)
 }
 
 static struct evbuffer *
-htp__create_reply_(evhtp_request_t * request, evhtp_res code)
-{
+htp__create_reply_(evhtp_request_t * request, evhtp_res code) {
     struct evbuffer * buf;
     const char      * content_type;
     char              res_buf[2048];
@@ -2321,6 +2484,12 @@ htp__connection_eventcb_(struct bufferevent * bev, short events, void * arg)
 {
     evhtp_connection_t * c = arg;
 
+    log_debug("%p %p eventcb %s%s%s%s", arg, (void *)bev,
+              events & BEV_EVENT_CONNECTED ? "connected" : "",
+              events & BEV_EVENT_ERROR     ? "error"     : "",
+              events & BEV_EVENT_TIMEOUT   ? "timeout"   : "",
+              events & BEV_EVENT_EOF       ? "eof"       : "");
+
     if (c->hooks && c->hooks->on_event)
     {
         (c->hooks->on_event)(c, events, c->hooks->on_event_arg);
@@ -2328,6 +2497,8 @@ htp__connection_eventcb_(struct bufferevent * bev, short events, void * arg)
 
     if ((events & BEV_EVENT_CONNECTED))
     {
+        log_debug("CONNECTED");
+
         if (evhtp_likely(c->type == evhtp_type_client))
         {
             HTP_FLAG_ON(c, EVHTP_CONN_FLAG_CONNECTED);
@@ -2344,6 +2515,21 @@ htp__connection_eventcb_(struct bufferevent * bev, short events, void * arg)
 #ifndef EVHTP_DISABLE_SSL
     if (c->ssl && !(events & BEV_EVENT_EOF))
     {
+#ifdef EVHTP_DEBUG
+        unsigned long sslerr;
+
+        while ((sslerr = bufferevent_get_openssl_error(bev))) {
+            log_error("SSL ERROR %lu:%i:%s:%i:%s:%i:%s",
+                      sslerr,
+                      ERR_GET_REASON(sslerr),
+                      ERR_reason_error_string(sslerr),
+                      ERR_GET_LIB(sslerr),
+                      ERR_lib_error_string(sslerr),
+                      ERR_GET_FUNC(sslerr),
+                      ERR_func_error_string(sslerr));
+        }
+#endif
+
         /* XXX need to do better error handling for SSL specific errors */
         HTP_FLAG_ON(c, EVHTP_CONN_FLAG_ERROR);
 
@@ -2568,10 +2754,6 @@ htp__connection_new_(evhtp_t * htp, evutil_socket_t sock, evhtp_type type)
     htparser_init(connection->parser, ptype);
     htparser_set_userdata(connection->parser, connection);
 
-#ifdef EVHTP_FUTURE_USE
-    TAILQ_INIT(&connection->pending);
-#endif
-
     return connection;
 }     /* htp__connection_new_ */
 
@@ -2718,16 +2900,14 @@ htp__ssl_thread_lock_(int mode, int type, const char * file, int line)
 static void
 htp__ssl_delete_scache_ent_(evhtp_ssl_ctx_t * ctx, evhtp_ssl_sess_t * sess)
 {
-    evhtp_t         * htp;
-    evhtp_ssl_cfg_t * cfg;
-    unsigned char   * sid;
-    unsigned int      slen;
+    evhtp_t          * htp;
+    evhtp_ssl_cfg_t  * cfg;
+    evhtp_ssl_data_t * sid;
+    unsigned int       slen;
 
-    htp  = (evhtp_t *)SSL_CTX_get_app_data(ctx);
-    cfg  = htp->ssl_cfg;
-
-    sid  = sess->session_id;
-    slen = sess->session_id_length;
+    htp = (evhtp_t *)SSL_CTX_get_app_data(ctx);
+    cfg = htp->ssl_cfg;
+    sid = (evhtp_ssl_data_t *)SSL_SESSION_get_id(sess, &slen);
 
     if (cfg->scache_del)
     {
@@ -2740,7 +2920,7 @@ htp__ssl_add_scache_ent_(evhtp_ssl_t * ssl, evhtp_ssl_sess_t * sess)
 {
     evhtp_connection_t * connection;
     evhtp_ssl_cfg_t    * cfg;
-    unsigned char      * sid;
+    evhtp_ssl_data_t   * sid;
     int                  slen;
 
     connection = (evhtp_connection_t *)SSL_get_app_data(ssl);
@@ -2748,10 +2928,9 @@ htp__ssl_add_scache_ent_(evhtp_ssl_t * ssl, evhtp_ssl_sess_t * sess)
     {
         return 0;     /* We cannot get the ssl_cfg */
     }
-    cfg        = connection->htp->ssl_cfg;
 
-    sid        = sess->session_id;
-    slen       = sess->session_id_length;
+    cfg = connection->htp->ssl_cfg;
+    sid = (evhtp_ssl_data_t *)SSL_SESSION_get_id(sess, &slen);
 
     SSL_set_timeout(sess, cfg->scache_timeout);
 
@@ -2764,19 +2943,20 @@ htp__ssl_add_scache_ent_(evhtp_ssl_t * ssl, evhtp_ssl_sess_t * sess)
 }
 
 static evhtp_ssl_sess_t *
-htp__ssl_get_scache_ent_(evhtp_ssl_t * ssl, unsigned char * sid, int sid_len, int * copy)
+htp__ssl_get_scache_ent_(evhtp_ssl_t * ssl, evhtp_ssl_data_t * sid, int sid_len, int * copy)
 {
     evhtp_connection_t * connection;
     evhtp_ssl_cfg_t    * cfg;
     evhtp_ssl_sess_t   * sess;
 
     connection = (evhtp_connection_t * )SSL_get_app_data(ssl);
+
     if (connection->htp == NULL)
     {
         return NULL;     /* We have no way of getting ssl_cfg */
     }
-    cfg        = connection->htp->ssl_cfg;
-    sess       = NULL;
+    cfg  = connection->htp->ssl_cfg;
+    sess = NULL;
 
     if (cfg->scache_get)
     {
@@ -2818,18 +2998,20 @@ htp__ssl_servername_(evhtp_ssl_t * ssl, int * unused, void * arg)
 
     if ((evhtp_vhost = htp__request_find_vhost_(evhtp, sname)))
     {
+        SSL_CTX * ctx = SSL_get_SSL_CTX(ssl);
+
         connection->htp = evhtp_vhost;
 
         HTP_FLAG_ON(connection, EVHTP_CONN_FLAG_VHOST_VIA_SNI);
 
         SSL_set_SSL_CTX(ssl, evhtp_vhost->ssl_ctx);
-        SSL_set_options(ssl, SSL_CTX_get_options(ssl->ctx));
+        SSL_set_options(ssl, SSL_CTX_get_options(ctx));
 
         if ((SSL_get_verify_mode(ssl) == SSL_VERIFY_NONE) ||
             (SSL_num_renegotiations(ssl) == 0))
         {
-            SSL_set_verify(ssl, SSL_CTX_get_verify_mode(ssl->ctx),
-                           SSL_CTX_get_verify_callback(ssl->ctx));
+            SSL_set_verify(ssl, SSL_CTX_get_verify_mode(ctx),
+                           SSL_CTX_get_verify_callback(ctx));
         }
 
         return SSL_TLSEXT_ERR_OK;
@@ -2854,11 +3036,6 @@ evhtp_request_get_method(evhtp_request_t * r)
     return htparser_get_method(r->conn->parser);
 }
 
-/**
- * @brief pauses a connection (disables reading)
- *
- * @param c a evhtp_connection_t * structure
- */
 void
 evhtp_connection_pause(evhtp_connection_t * c)
 {
@@ -2871,11 +3048,6 @@ evhtp_connection_pause(evhtp_connection_t * c)
     return;
 }
 
-/**
- * @brief resumes a connection (enables reading) and activates resume event.
- *
- * @param c
- */
 void
 evhtp_connection_resume(evhtp_connection_t * c)
 {
@@ -2888,13 +3060,6 @@ evhtp_connection_resume(evhtp_connection_t * c)
     return;
 }
 
-/**
- * @brief Wrapper around evhtp_connection_pause
- *
- * @see evhtp_connection_pause
- *
- * @param request
- */
 void
 evhtp_request_pause(evhtp_request_t * request)
 {
@@ -2904,13 +3069,6 @@ evhtp_request_pause(evhtp_request_t * request)
     evhtp_connection_pause(request->conn);
 }
 
-/**
- * @brief Wrapper around evhtp_connection_resume
- *
- * @see evhtp_connection_resume
- *
- * @param request
- */
 void
 evhtp_request_resume(evhtp_request_t * request)
 {
@@ -3114,8 +3272,7 @@ evhtp_kvs_for_each(evhtp_kvs_t * kvs, evhtp_kvs_iterator cb, void * arg)
         return -1;
     }
 
-    TAILQ_FOREACH(kv, kvs, next)
-    {
+    TAILQ_FOREACH(kv, kvs, next) {
         int res;
 
         if ((res = cb(kv, arg)))
@@ -3137,8 +3294,7 @@ evhtp_kv_find(evhtp_kvs_t * kvs, const char * key)
         return NULL;
     }
 
-    TAILQ_FOREACH(kv, kvs, next)
-    {
+    TAILQ_FOREACH(kv, kvs, next) {
         if (strcasecmp(kv->key, key) == 0)
         {
             return kv->val;
@@ -3158,8 +3314,7 @@ evhtp_kvs_find_kv(evhtp_kvs_t * kvs, const char * key)
         return NULL;
     }
 
-    TAILQ_FOREACH(kv, kvs, next)
-    {
+    TAILQ_FOREACH(kv, kvs, next) {
         if (strcasecmp(kv->key, key) == 0)
         {
             return kv;
@@ -3190,8 +3345,7 @@ evhtp_kvs_add_kvs(evhtp_kvs_t * dst, evhtp_kvs_t * src)
 
     evhtp_kv_t * kv;
 
-    TAILQ_FOREACH(kv, src, next)
-    {
+    TAILQ_FOREACH(kv, src, next) {
         evhtp_kvs_add_kv(dst, evhtp_kv_new(kv->key,
                                            kv->val,
                                            kv->k_heaped,
@@ -3810,7 +3964,11 @@ evhtp_accept_socket(evhtp_t * htp, evutil_socket_t sock, int backlog)
         {
             if (setsockopt(sock, SOL_SOCKET, SO_REUSEPORT, (void *)&on, sizeof(on)) == -1)
             {
-                break;
+                if (errno != EOPNOTSUPP) {
+                    break;
+                }
+
+                log_warn("SO_REUSEPORT not supported for this socket.. Skipping");
             }
         }
 #endif
@@ -3820,7 +3978,11 @@ evhtp_accept_socket(evhtp_t * htp, evutil_socket_t sock, int backlog)
         {
             if (setsockopt(sock, IPPROTO_TCP, TCP_NODELAY, (void *)&on, sizeof(on)) == -1)
             {
-                break;
+                if (errno != EOPNOTSUPP) {
+                    break;
+                }
+
+                log_warn("TCP_NODELAY not supported for this socket.. Skipping");
             }
         }
 #endif
@@ -3830,7 +3992,11 @@ evhtp_accept_socket(evhtp_t * htp, evutil_socket_t sock, int backlog)
         {
             if (setsockopt(sock, IPPROTO_TCP, TCP_DEFER_ACCEPT, (void *)&on, sizeof(on)) == -1)
             {
-                break;
+                if (errno != EOPNOTSUPP) {
+                    break;
+                }
+
+                log_warn("TCP_DEFER_ACCEPT not supported for this socket.. Skipping");
             }
         }
 #endif
@@ -4020,8 +4186,7 @@ evhtp_callbacks_free(evhtp_callbacks_t * callbacks)
         return;
     }
 
-    TAILQ_FOREACH_SAFE(callback, callbacks, next, tmp)
-    {
+    TAILQ_FOREACH_SAFE(callback, callbacks, next, tmp) {
         TAILQ_REMOVE(callbacks, callback, next);
 
         evhtp_safe_free(callback, evhtp_callback_free);
@@ -4195,10 +4360,27 @@ htp__set_hook_(evhtp_hooks_t ** hooks, evhtp_hook_type type, evhtp_hook cb, void
     return 0;
 }         /* htp__set_hook_ */
 
+static int
+htp__unset_hook_(evhtp_hooks_t ** hooks, evhtp_hook_type type) {
+    return htp__set_hook_(hooks, type, NULL, NULL);
+}
+
 int
-evhtp_set_hook(evhtp_hooks_t ** hooks, evhtp_hook_type type, evhtp_hook cb, void * arg)
+evhtp_callback_unset_hook(evhtp_callback_t * callback, evhtp_hook_type type)
 {
-    return htp__set_hook_(hooks, type, cb, arg);
+    return htp__unset_hook_(&callback->hooks, type);
+}
+
+int
+evhtp_request_unset_hook(evhtp_request_t * req, evhtp_hook_type type)
+{
+    return htp__unset_hook_(&req->hooks, type);
+}
+
+int
+evhtp_connection_unset_hook(evhtp_connection_t * conn, evhtp_hook_type type)
+{
+    return htp__unset_hook_(&conn->hooks, type);
 }
 
 int
@@ -4220,93 +4402,43 @@ evhtp_connection_set_hook(evhtp_connection_t * conn, evhtp_hook_type type, evhtp
 }
 
 int
-evhtp_unset_hook(evhtp_hooks_t ** hooks, evhtp_hook_type type)
-{
-    return evhtp_set_hook(hooks, type, NULL, NULL);
-}
-
-int
 evhtp_unset_all_hooks(evhtp_hooks_t ** hooks)
 {
-    int res = 0;
+    int i;
 
-    if (evhtp_unset_hook(hooks, evhtp_hook_on_headers_start))
-    {
-        res -= 1;
-    }
+    struct {
+        enum evhtp_hook_type type;
+    } hooklist_[] = {
+        { evhtp_hook_on_header          },
+        { evhtp_hook_on_headers         },
+        { evhtp_hook_on_path            },
+        { evhtp_hook_on_read            },
+        { evhtp_hook_on_request_fini    },
+        { evhtp_hook_on_connection_fini },
+        { evhtp_hook_on_new_chunk       },
+        { evhtp_hook_on_chunk_complete  },
+        { evhtp_hook_on_chunks_complete },
+        { evhtp_hook_on_headers_start   },
+        { evhtp_hook_on_error           },
+        { evhtp_hook_on_hostname        },
+        { evhtp_hook_on_write           },
+        { evhtp_hook_on_event           },
+        { evhtp_hook_on_conn_error      },
+        { -1                            }
+    };
 
-    if (evhtp_unset_hook(hooks, evhtp_hook_on_header))
-    {
-        res -= 1;
-    }
-
-    if (evhtp_unset_hook(hooks, evhtp_hook_on_headers))
-    {
-        res -= 1;
-    }
-
-    if (evhtp_unset_hook(hooks, evhtp_hook_on_path))
-    {
-        res -= 1;
-    }
-
-    if (evhtp_unset_hook(hooks, evhtp_hook_on_read))
-    {
-        res -= 1;
-    }
-
-    if (evhtp_unset_hook(hooks, evhtp_hook_on_request_fini))
-    {
-        res -= 1;
-    }
-
-    if (evhtp_unset_hook(hooks, evhtp_hook_on_connection_fini))
-    {
-        res -= 1;
-    }
-
-    if (evhtp_unset_hook(hooks, evhtp_hook_on_conn_error))
-    {
-        res -= 1;
-    }
-
-    if (evhtp_unset_hook(hooks, evhtp_hook_on_error))
-    {
-        res -= 1;
-    }
-
-    if (evhtp_unset_hook(hooks, evhtp_hook_on_new_chunk))
-    {
-        res -= 1;
-    }
-
-    if (evhtp_unset_hook(hooks, evhtp_hook_on_chunk_complete))
-    {
-        res -= 1;
-    }
-
-    if (evhtp_unset_hook(hooks, evhtp_hook_on_chunks_complete))
-    {
-        res -= 1;
-    }
-
-    if (evhtp_unset_hook(hooks, evhtp_hook_on_hostname))
-    {
-        res -= 1;
-    }
-
-    if (evhtp_unset_hook(hooks, evhtp_hook_on_write))
-    {
+    if (hooks == NULL) {
         return -1;
     }
 
-    if (evhtp_unset_hook(hooks, evhtp_hook_on_event))
-    {
-        return -1;
+    for (i = 0; hooklist_[i].type != -1; i++) {
+        if (htp__unset_hook_(hooks, hooklist_[i].type) == -1) {
+            return -1;
+        }
     }
 
-    return res;
-}     /* evhtp_unset_all_hooks */
+    return 0;
+}
 
 evhtp_hooks_t *
 evhtp_connection_get_hooks(evhtp_connection_t * c)
@@ -4319,6 +4451,12 @@ evhtp_connection_get_hooks(evhtp_connection_t * c)
     return c->hooks;
 }
 
+/**
+ * @brief returns request hooks
+ *
+ * @param r
+ * @return
+ */
 evhtp_hooks_t *
 evhtp_request_get_hooks(evhtp_request_t * r)
 {
@@ -4330,6 +4468,12 @@ evhtp_request_get_hooks(evhtp_request_t * r)
     return r->hooks;
 }
 
+/**
+ * @brief returns callback hooks
+ *
+ * @param cb
+ * @return
+ */
 evhtp_hooks_t *
 evhtp_callback_get_hooks(evhtp_callback_t * cb)
 {
@@ -4387,8 +4531,7 @@ evhtp_get_cb(evhtp_t * htp, const char * path)
         return NULL;
     }
 
-    TAILQ_FOREACH(callback, htp->callbacks, next)
-    {
+    TAILQ_FOREACH(callback, htp->callbacks, next) {
         if (strcmp(callback->val.path, path) == 0)
         {
             return callback;
@@ -4628,13 +4771,8 @@ evhtp_ssl_use_threads(void)
 int
 evhtp_ssl_init(evhtp_t * htp, evhtp_ssl_cfg_t * cfg)
 {
-#ifdef EVHTP_ENABLE_FUTURE_STUFF
-    evhtp_ssl_scache_init init_cb = NULL;
-    evhtp_ssl_scache_add  add_cb  = NULL;
-    evhtp_ssl_scache_get  get_cb  = NULL;
-    evhtp_ssl_scache_del  del_cb  = NULL;
-#endif
-    long cache_mode;
+    long          cache_mode;
+    unsigned char c;
 
     if (cfg == NULL || htp == NULL || cfg->pemfile == NULL)
     {
@@ -4642,8 +4780,19 @@ evhtp_ssl_init(evhtp_t * htp, evhtp_ssl_cfg_t * cfg)
     }
 
     SSL_library_init();
+    ERR_load_crypto_strings();
     SSL_load_error_strings();
-    RAND_poll();
+    OpenSSL_add_all_algorithms();
+
+    if (RAND_poll() != 1) {
+        log_error("RAND_poll");
+        return -1;
+    }
+
+    if (RAND_bytes(&c, 1) != 1) {
+        log_error("RAND_bytes");
+        return -1;
+    }
 
 #if OPENSSL_VERSION_NUMBER < 0x10000000L
     STACK_OF(SSL_COMP) * comp_methods = SSL_COMP_get_compression_methods();
@@ -4663,21 +4812,22 @@ evhtp_ssl_init(evhtp_t * htp, evhtp_ssl_cfg_t * cfg)
     SSL_CTX_set_options(htp->ssl_ctx, cfg->ssl_opts);
 
 #ifndef OPENSSL_NO_ECDH
-    if (cfg->named_curve != NULL)
-    {
+    if (cfg->named_curve != NULL) {
         EC_KEY * ecdh = NULL;
         int      nid  = 0;
 
-        nid  = OBJ_sn2nid(cfg->named_curve);
-        if (nid == 0)
-        {
-            fprintf(stderr, "ECDH initialization failed: unknown curve %s\n", cfg->named_curve);
+        nid = OBJ_sn2nid(cfg->named_curve);
+
+        if (nid == 0) {
+            log_error("ECDH initialization failed: unknown curve %s", cfg->named_curve);
         }
+
         ecdh = EC_KEY_new_by_curve_name(nid);
-        if (ecdh == NULL)
-        {
-            fprintf(stderr, "ECDH initialization failed for curve %s\n", cfg->named_curve);
+
+        if (ecdh == NULL) {
+            log_error("ECDH initialization failed for curve %s", cfg->named_curve);
         }
+
         SSL_CTX_set_tmp_ecdh(htp->ssl_ctx, ecdh);
         EC_KEY_free(ecdh);
     }
@@ -4689,6 +4839,7 @@ evhtp_ssl_init(evhtp_t * htp, evhtp_ssl_cfg_t * cfg)
         DH   * dh;
 
         fh = fopen(cfg->dhparams, "r");
+
         if (fh != NULL)
         {
             dh = PEM_read_DHparams(fh, NULL, NULL, NULL);
@@ -4697,31 +4848,36 @@ evhtp_ssl_init(evhtp_t * htp, evhtp_ssl_cfg_t * cfg)
                 SSL_CTX_set_tmp_dh(htp->ssl_ctx, dh);
                 DH_free(dh);
             } else {
-                fprintf(stderr, "DH initialization failed: unable to parse file %s\n", cfg->dhparams);
+                log_error("DH initialization failed: unable to parse file %s", cfg->dhparams);
             }
+
             fclose(fh);
         } else {
-            fprintf(stderr, "DH initialization failed: unable to open file %s\n", cfg->dhparams);
+            log_error("DH initialization failed: unable to open file %s", cfg->dhparams);
         }
     }
 #endif  /* OPENSSL_NO_DH */
 
-    if (cfg->ciphers != NULL)
-    {
-        SSL_CTX_set_cipher_list(htp->ssl_ctx, cfg->ciphers);
+    if (cfg->ciphers != NULL) {
+        if (SSL_CTX_set_cipher_list(htp->ssl_ctx, cfg->ciphers) == 0) {
+            log_error("set_cipher_list");
+            return -1;
+        }
     }
 
     SSL_CTX_load_verify_locations(htp->ssl_ctx, cfg->cafile, cfg->capath);
     X509_STORE_set_flags(SSL_CTX_get_cert_store(htp->ssl_ctx), cfg->store_flags);
     SSL_CTX_set_verify(htp->ssl_ctx, cfg->verify_peer, cfg->x509_verify_cb);
 
-    if (cfg->x509_chk_issued_cb != NULL)
-    {
+    if (cfg->x509_chk_issued_cb != NULL) {
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
         htp->ssl_ctx->cert_store->check_issued = cfg->x509_chk_issued_cb;
+#else
+        X509_STORE_set_check_issued(SSL_CTX_get_cert_store(htp->ssl_ctx), cfg->x509_chk_issued_cb);
+#endif
     }
 
-    if (cfg->verify_depth)
-    {
+    if (cfg->verify_depth) {
         SSL_CTX_set_verify_depth(htp->ssl_ctx, cfg->verify_depth);
     }
 
@@ -4729,35 +4885,12 @@ evhtp_ssl_init(evhtp_t * htp, evhtp_ssl_cfg_t * cfg)
         case evhtp_ssl_scache_type_disabled:
             cache_mode = SSL_SESS_CACHE_OFF;
             break;
-#ifdef EVHTP_ENABLE_FUTURE_STUFF
-        case evhtp_ssl_scache_type_user:
-            cache_mode = SSL_SESS_CACHE_SERVER |
-                         SSL_SESS_CACHE_NO_INTERNAL |
-                         SSL_SESS_CACHE_NO_INTERNAL_LOOKUP;
-
-            init_cb    = cfg->scache_init;
-            add_cb     = cfg->scache_add;
-            get_cb     = cfg->scache_get;
-            del_cb     = cfg->scache_del;
-            break;
-        case evhtp_ssl_scache_type_builtin:
-            cache_mode = SSL_SESS_CACHE_SERVER |
-                         SSL_SESS_CACHE_NO_INTERNAL |
-                         SSL_SESS_CACHE_NO_INTERNAL_LOOKUP;
-
-            init_cb    = htp__ssl_builtin_init_;
-            add_cb     = htp__ssl_builtin_add_;
-            get_cb     = htp__ssl_builtin_get_;
-            del_cb     = htp__ssl_builtin_del_;
-            break;
-#endif
-        case evhtp_ssl_scache_type_internal:
         default:
             cache_mode = SSL_SESS_CACHE_SERVER;
             break;
     }     /* switch */
 
-    SSL_CTX_use_certificate_file(htp->ssl_ctx, cfg->pemfile, SSL_FILETYPE_PEM);
+    SSL_CTX_use_certificate_chain_file(htp->ssl_ctx, cfg->pemfile);
 
     char * const key = cfg->privfile ?  cfg->privfile : cfg->pemfile;
 
@@ -4810,14 +4943,12 @@ evhtp_ssl_init(evhtp_t * htp, evhtp_ssl_cfg_t * cfg)
 #endif
 
 struct bufferevent *
-evhtp_connection_get_bev(evhtp_connection_t * connection)
-{
+evhtp_connection_get_bev(evhtp_connection_t * connection) {
     return connection->bev;
 }
 
 struct bufferevent *
-evhtp_connection_take_ownership(evhtp_connection_t * connection)
-{
+evhtp_connection_take_ownership(evhtp_connection_t * connection) {
     struct bufferevent * bev = evhtp_connection_get_bev(connection);
 
     if (connection->hooks)
@@ -4844,14 +4975,12 @@ evhtp_connection_take_ownership(evhtp_connection_t * connection)
 }
 
 struct bufferevent *
-evhtp_request_get_bev(evhtp_request_t * request)
-{
+evhtp_request_get_bev(evhtp_request_t * request) {
     return evhtp_connection_get_bev(request->conn);
 }
 
 struct bufferevent *
-evhtp_request_take_ownership(evhtp_request_t * request)
-{
+evhtp_request_take_ownership(evhtp_request_t * request) {
     return evhtp_connection_take_ownership(request->conn);
 }
 
@@ -4985,12 +5114,6 @@ evhtp_set_max_keepalive_requests(evhtp_t * htp, uint64_t num)
     htp->max_keepalive_requests = num;
 }
 
-/**
- * @brief set bufferevent flags, defaults to BEV_OPT_CLOSE_ON_FREE
- *
- * @param htp
- * @param flags
- */
 void
 evhtp_set_bev_flags(evhtp_t * htp, int flags)
 {
@@ -5015,26 +5138,23 @@ evhtp_set_parser_flags(evhtp_t * htp, int flags)
     htp->parser_flags = flags;
 }
 
-#define HTP_FLAG_FNGEN(NAME, TYPE) void                  \
-    evhtp ## NAME ## _enable_flag(TYPE v, int flag)      \
-    {                                                    \
-        HTP_FLAG_ON(v, flag);                            \
-    }                                                    \
-                                                         \
-    void                                                 \
-        evhtp ## NAME ## _disable_flag(TYPE v, int flag) \
-    {                                                    \
-        HTP_FLAG_OFF(v, flag);                           \
-    }                                                    \
-                                                         \
-    int                                                  \
-        evhtp ## NAME ## _get_flags(TYPE v)              \
-    {                                                    \
-        if (v)                                           \
-        {                                                \
-            return v->flags;                             \
-        }                                                \
-        return -1;                                       \
+#define HTP_FLAG_FNGEN(NAME, TYPE) void                    \
+    evhtp ## NAME ## _enable_flag(TYPE v, int flag) {      \
+        HTP_FLAG_ON(v, flag);                              \
+    }                                                      \
+                                                           \
+    void                                                   \
+        evhtp ## NAME ## _disable_flag(TYPE v, int flag) { \
+        HTP_FLAG_OFF(v, flag);                             \
+    }                                                      \
+                                                           \
+    int                                                    \
+        evhtp ## NAME ## _get_flags(TYPE v) {              \
+        if (v)                                             \
+        {                                                  \
+            return v->flags;                               \
+        }                                                  \
+        return -1;                                         \
     }
 
 HTP_FLAG_FNGEN(, evhtp_t *);
@@ -5056,6 +5176,8 @@ evhtp_add_alias(evhtp_t * evhtp, const char * name)
         return -1;
     }
 
+    log_debug("Adding %s to aliases", name);
+
     alias->alias = htp__strdup_(name);
     evhtp_alloc_assert(alias->alias);
 
@@ -5064,22 +5186,31 @@ evhtp_add_alias(evhtp_t * evhtp, const char * name)
     return 0;
 }
 
-/**
- * @brief add a virtual host.
- *
- * NOTE: If SSL is being used and the vhost was found via SNI, the Host: header
- *       will *NOT* be used to find a matching vhost.
- *
- *       Also, any hooks which are set prior to finding a vhost that are hooks
- *       which are after the host hook, they are overwritten by the callbacks
- *       and hooks set for the vhost specific evhtp_t structure.
- *
- * @param evhtp
- * @param name
- * @param vhost
- *
- * @return
- */
+int
+evhtp_add_aliases(evhtp_t * htp, const char * name, ...) {
+    va_list argp;
+    size_t  len;
+
+    if (evhtp_add_alias(htp, name) == -1) {
+        return -1;
+    }
+
+    va_start(argp, name);
+    {
+        const char * p;
+
+        while ((p = va_arg(argp, const char *)) != NULL) {
+            if (evhtp_add_alias(htp, p) == -1) {
+                log_error("Unable to add %s alias", p);
+                return -1;
+            }
+        }
+    }
+    va_end(argp);
+
+    return 0;
+}
+
 int
 evhtp_add_vhost(evhtp_t * evhtp, const char * name, evhtp_t * vhost)
 {
@@ -5119,6 +5250,15 @@ evhtp_add_vhost(evhtp_t * evhtp, const char * name, evhtp_t * vhost)
     return 0;
 }
 
+/**
+ * @brief Allocates new evhtp_t structure
+ *
+ * @param [OUT] out - double ptr to evhtp_t structure.
+ * @param [IN] evbase - event_base structure
+ * @param [IN] arg - anonymous argument
+ *
+ * @return 0 on success, -1 on failure
+ */
 static int
 evhtp__new_(evhtp_t ** out, struct event_base * evbase, void * arg)
 {
@@ -5209,8 +5349,7 @@ evhtp_free(evhtp_t * evhtp)
         evhtp_safe_free(evhtp->callbacks, evhtp_callbacks_free);
     }
 
-    TAILQ_FOREACH_SAFE(evhtp_alias, &evhtp->aliases, next, tmp)
-    {
+    TAILQ_FOREACH_SAFE(evhtp_alias, &evhtp->aliases, next, tmp) {
         if (evhtp_alias->alias != NULL)
         {
             evhtp_safe_free(evhtp_alias->alias, htp__free_);
@@ -5306,6 +5445,10 @@ evhtp_connection_new_dns(struct event_base * evbase, struct evdns_base * dns_bas
 }     /* evhtp_connection_new_dns */
 
 #ifndef EVHTP_DISABLE_SSL
+
+#define ssl_sk_new_     bufferevent_openssl_socket_new
+#define ssl_sk_connect_ bufferevent_socket_connect
+
 evhtp_connection_t *
 evhtp_connection_ssl_new(struct event_base * evbase,
                          const char        * addr,
@@ -5314,42 +5457,64 @@ evhtp_connection_ssl_new(struct event_base * evbase,
 {
     evhtp_connection_t * conn;
     struct sockaddr_in   sin;
-    int                  rc;
+    const char         * errstr;
 
     if (evbase == NULL)
     {
         return NULL;
     }
 
-    if (!(conn = htp__connection_new_(NULL, -1, evhtp_type_client)))
-    {
+    if (!(conn = htp__connection_new_(NULL, -1, evhtp_type_client))) {
         return NULL;
     }
 
-    sin.sin_family      = AF_INET;
-    sin.sin_addr.s_addr = inet_addr(addr);
-    sin.sin_port        = htons(port);
+    conn->evbase = evbase;
+    errstr       = NULL;
 
-    conn->ssl           = SSL_new(ctx);
-    evhtp_assert(conn->ssl != NULL);
+    do {
+        if ((conn->ssl = SSL_new(ctx)) == NULL) {
+            errstr = "unable to allocate SSL context";
 
-    conn->evbase        = evbase;
-    conn->bev           = bufferevent_openssl_socket_new(
-        evbase, -1,
-        conn->ssl,
-        BUFFEREVENT_SSL_CONNECTING,
-        BEV_OPT_CLOSE_ON_FREE);
+            break;
+        }
 
-    evhtp_assert(conn->bev != NULL);
+        if ((conn->bev = ssl_sk_new_(evbase, -1, conn->ssl,
+                                     BUFFEREVENT_SSL_CONNECTING,
+                                     BEV_OPT_CLOSE_ON_FREE)) == NULL) {
+            errstr = "unable to allocate bev context";
+            break;
+        }
 
-    bufferevent_enable(conn->bev, EV_READ);
-    bufferevent_setcb(conn->bev, NULL, NULL,
-                      htp__connection_eventcb_, conn);
+        if (bufferevent_enable(conn->bev, EV_READ) == -1) {
+            errstr = "unable to enable reading";
+            break;
+        }
 
-    rc = bufferevent_socket_connect(conn->bev,
-                                    (struct sockaddr *)&sin, sizeof(sin));
 
-    evhtp_assert(rc == 0);
+        bufferevent_setcb(conn->bev, NULL, NULL,
+                          htp__connection_eventcb_, conn);
+
+
+        sin.sin_family      = AF_INET;
+        sin.sin_addr.s_addr = inet_addr(addr);
+        sin.sin_port        = htons(port);
+
+        if (ssl_sk_connect_(conn->bev,
+                            (struct sockaddr *)&sin,
+                            sizeof(sin)) == -1) {
+            errstr = "sk_connect_ failure";
+            break;
+        }
+    } while (0);
+
+
+    if (errstr != NULL) {
+        log_error("%s", errstr);
+
+        evhtp_safe_free(conn, evhtp_connection_free);
+
+        return NULL;
+    }
 
     return conn;
 }     /* evhtp_connection_ssl_new */

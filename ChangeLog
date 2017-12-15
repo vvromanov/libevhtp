@@ -1,3 +1,71 @@
+v1.2.15
+ o deprecated unset_hook and set_hook / cleanup (f1d2bd1 Nathan French)
+ o updated travis configuration (45003e1 Nathan French)
+ o Latest revision to support multiple SSL versions (4e353ba Tony Lambiris)
+ o remove silly comment (d3da401 Nathan French)
+ o check for errors in SSL RAND_(poll|bytes) calls (018dec8 Nathan French)
+ o Added new virtualhost examples and functions (3467382 Nathan French)
+ o added example request pausing app (282a1c9 Nathan French)
+ o Added a more extensive SSL sandbox. (1e0c241 Nathan French)
+ o Add examples/https/README (6ecf7e7 Nathan French)
+ o exit failure in example_https when SSL is disabled (0848e08 Nathan French)
+ o [#26] Use SSL_CTX_use_certificate_chain_file (4c4eb3a Nathan French)
+
+v1.2.14 - !!!! SECURITY UPDATE !!!!
+ o Added doxygen tags. Updated Doxyfile to include more sources and headers. (50ab41d Dan Henderson)
+ o SSL logging on handshake errors (0fff6bc Nathan French)
+ o Remove built-in Oniguruma, now rely on system only (a31601c Nathan French)
+ o FindLibevent now displays all deps (02a9e6c Nathan French)
+
+ * THIS IS PRIMARILY A SECURITY UPDATE:
+    Oniguruma (the regex library used by libevhtp) was packaged with the source;
+    this was dumb. There were several CVE's recently published that made evhtp
+    insecure.
+
+    NOTE TO USERS:
+
+    Libevhtp will no longer ship Oniguruma with the source. Instead, the build
+    process will attempt and find a system-installed version instead. There is
+    a big red warning if it is not found.
+
+    A big thanks must go to @flokli (github) for pointing this out to me.
+
+v1.2.13
+ o Rename test->test_general (test is reservet target name in cmake) (d18c6d0 Vladimir Romanov)
+ o Fix CMake files (a2fcb3d Vladimir Romanov)
+ o Fix compilation (74537f5 Vladimir Romanov)
+ o [#32] fix crash in evhtp_unbind_socket when evlistener fails (8149a84 Nathan French)
+ o [#31] use CURRENT_SOURCE_DIR instead of SOURCE_DIR in cmake (aa8a989 Nathan French)
+ o Added EVHTP_DEBUG option (with new logging) (f20e5cf Nathan French)
+ o minor updates for pull #33 (ccf5ce4 Nathan French)
+ o Make github stop bitching about newlines. (2c98506 Nathan French)
+ o transparent reference counting API (6f4dc08 Nathan French)
+ o Added some debug logs (0a79919 Nathan French)
+ o use evhtp/onig (76ad658 Nathan French)
+ o [#38] some extra debug logging (9db2231 Nathan French)
+ o [#38] I'm an idiot, fix for parser_init. (7c13a57 Nathan French)
+ o proper format str for logging in parser (de287b0 Nathan French)
+ o Fix typo in `evthr_new()` function name (3cfeb03 Vincent Bernat)
+ o Use evhtp/onig when system version isn't found. (a59b625 Nathan French)
+ o fix build on SunOS (0c54892 Sebastian Wiedenroth)
+ o Parser cleanup. (db040e9 Nathan French)
+ o add onigposix to build dir evhtp if sys not found (7b9d1a2 Nathan French)
+ o Ignore me, just formatting. (d911f58 Nathan French)
+ o Update LICENSE file (new authors / dates), no other changes (12ed7e8 Nathan French)
+ o fixes #43 (no need to check for -ldl or -lrt (bb0630c Nathan French)
+ o Likely defect fix for issue 42. Check connection->type to ensure that it is not evhtp_type_client. Also checked for c->htp to not be null in a couple of ssl related functions. (77a0752 Dan Henderson)
+ o Bugfixes and cleanup for htp__connection_writecb_ (440e5b9 Nathan French)
+ o Update issues template. (960a788 Nathan French)
+ o [Bugfix #51] htp__callback_find_ length check fix (44ddf9a Nathan French)
+ o Better error handling for connection_ssl_new (369fe77 Nathan French)
+ o connection_ssl_new log errors to stderr (a1f6926 Nathan French)
+ o Add evhtp_query_free for test_query (b150ebe Nathan French)
+ o formatting (2307737 Nathan French)
+ o Add RPM to package generation (8479c02 Tony Lambiris)
+ o replace cruft in evhtp_unset_all_hooks with for loop (4e62d69 Nathan French)
+ o [#55] More flexible package generation (4c5dbe2 Nathan French)
+ o added colors.cmake for pretty printing (bec3451 Nathan French)
+
 v1.2.12
  o remove evhtp_heap, never used (d132721 Nathan French)
  o remove evhtp_json, never used (aec4b3c Nathan French)
